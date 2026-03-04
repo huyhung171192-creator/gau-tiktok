@@ -6,7 +6,6 @@
     <title>Tool Chốt Đơn TikTok</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <style>
-        /* Khóa CSS cơ bản */
         body { font-family: Arial, sans-serif; background-color: #121212; color: #ffffff; margin: 0; padding: 10px; overscroll-behavior: none; touch-action: pan-y; }
         .header { text-align: center; margin-bottom: 15px; background: #1e1e1e; padding: 15px; border-radius: 8px; border: 1px solid #444; }
         input[type="text"] { width: 100%; padding: 12px; font-size: 16px; border-radius: 5px; border: none; box-sizing: border-box; margin-bottom: 10px; background: #2c2c2c; color: white; }
@@ -55,41 +54,31 @@
     </div>
 
     <script>
-        // --- 1. KHÓA TÍNH NĂNG VUỐT TẢI LẠI TRANG (JS CAN THIỆP SÂU) ---
         let startY = 0;
-        window.addEventListener('touchstart', function(e) {
-            startY = e.touches[0].clientY;
-        }, { passive: false });
-        
+        window.addEventListener('touchstart', function(e) { startY = e.touches[0].clientY; }, { passive: false });
         window.addEventListener('touchmove', function(e) {
-            // Nếu màn hình đang ở tuốt trên cùng mà cố tình vuốt xuống -> CHẶN NGAY
-            if (window.scrollY === 0 && e.touches[0].clientY > startY) {
-                e.preventDefault();
-            }
+            if (window.scrollY === 0 && e.touches[0].clientY > startY) e.preventDefault();
         }, { passive: false });
 
-        // Hiện cảnh báo nếu vô tình bấm nút Back của điện thoại
         window.addEventListener('beforeunload', function (e) {
             e.preventDefault();
             e.returnValue = '';
         });
 
-        // --- 2. TỰ NHỚ ID TIKTOK SAU MỖI LẦN GÕ ---
         let inputId = document.getElementById('tiktok_id');
         inputId.value = localStorage.getItem('last_tiktok_id') || '';
-        inputId.addEventListener('input', function() {
-            localStorage.setItem('last_tiktok_id', this.value);
-        });
+        inputId.addEventListener('input', function() { localStorage.setItem('last_tiktok_id', this.value); });
 
-        // --- 3. LOGIC XỬ LÝ CHỐT ĐƠN ---
         const socket = io();
         let historyList = JSON.parse(localStorage.getItem('lichSuChotDon') || '[]');
+        
+        // THÊM BỘ ĐẾM ĐỂ ĐẢM BẢO ID LÀ ĐỘC NHẤT VÔ NHỊ
+        let msgCounter = 0; 
+        
         updateCount();
         renderHistory();
 
-        function updateCount() {
-            document.getElementById('count_num').innerText = historyList.length;
-        }
+        function updateCount() { document.getElementById('count_num').innerText = historyList.length; }
 
         function switchTab(tab) {
             if(tab === 'live') {
@@ -115,13 +104,16 @@
         socket.on('sys_log', data => { document.getElementById('log_area').innerText = data.msg; });
 
         socket.on('new_comment', data => {
+            msgCounter++; // Tăng bộ đếm mỗi khi có comment mới
             let container = document.getElementById('comments_container');
             let div = document.createElement('div');
-            let id = "msg-" + Date.now();
+            
+            // Ép thêm bộ đếm vào ID để không bao giờ bị trùng
+            let id = "msg-" + Date.now() + "-" + msgCounter; 
+            
             div.id = id;
             div.className = data.has_phone ? 'comment-box has-phone' : 'comment-box';
             
-            // Gắn dữ liệu ẩn vào khung HTML để nút bấm không bị lỗi ký tự
             div.dataset.user = data.user;
             div.dataset.comment = data.comment;
             div.dataset.time = data.time;
