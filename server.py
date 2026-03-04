@@ -11,7 +11,7 @@ from TikTokLive.events import ConnectEvent, DisconnectEvent, CommentEvent
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Biến thần thánh để ra lệnh "giết" luồng cũ
+# Cờ hiệu để quản lý và "giết" luồng cũ
 stop_flags = {}
 
 def detect_phone(text):
@@ -27,11 +27,11 @@ def handle_start(data):
     global stop_flags
     tiktok_id = data['tiktok_id']
     
-    # 1. Bật cờ "True" cho TẤT CẢ các luồng đang chạy ngầm để ép chúng nó dừng lại
+    # 1. Bật cờ "True" cho TẤT CẢ các luồng đang chạy ngầm để ép dừng lại
     for k in stop_flags.keys():
         stop_flags[k] = True
         
-    # 2. Tạo cờ "False" (cho phép chạy) cho cái ID mới này
+    # 2. Mở cửa cho ID mới
     stop_flags[tiktok_id] = False
     
     socketio.emit('sys_log', {'msg': f"Đang dò tìm phòng live: {tiktok_id}..."})
@@ -53,11 +53,12 @@ def run_tiktok_listener(tiktok_id):
 
     @client.on(CommentEvent)
     async def on_comment(event: CommentEvent):
-        # NẾU CỜ BỊ ĐỔI THÀNH TRUE -> NGẮT KẾT NỐI LUỒNG NÀY NGAY LẬP TỨC
+        # ĐÂY LÀ CHỖ TÔI THÊM CHỮ "await" ĐỂ NGẮT LUỒNG CHUẨN XÁC
         if stop_flags.get(tiktok_id, False):
-            client.disconnect()
+            await client.disconnect()
             return
 
+        # Giờ chuẩn Việt Nam (UTC+7)
         time_now = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime('%H:%M:%S')
         comment_text = event.comment
         has_phone = detect_phone(comment_text)
@@ -76,7 +77,5 @@ def run_tiktok_listener(tiktok_id):
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    # THÊM ĐOẠN allow_unsafe_werkzeug=True VÀO CUỐI DÒNG DƯỚI ĐÂY
+    # Mở khóa cho phép chạy trên Render (Production)
     socketio.run(app, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
-
-
