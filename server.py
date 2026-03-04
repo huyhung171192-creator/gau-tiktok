@@ -1,3 +1,4 @@
+import os  # DÒNG NÀY CỰC KỲ QUAN TRỌNG, BÁC ĐANG THIẾU DÒNG NÀY
 import threading
 import asyncio
 import datetime
@@ -8,7 +9,6 @@ from TikTokLive import TikTokLiveClient
 from TikTokLive.events import ConnectEvent, DisconnectEvent, CommentEvent
 
 app = Flask(__name__)
-# Thiết lập SocketIO cho phép mọi thiết bị kết nối vào
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # --- HÀM LỌC SỐ ĐIỆN THOẠI ---
@@ -27,8 +27,6 @@ def handle_start(data):
     tiktok_id = data['tiktok_id']
     print(f"[*] Điện thoại yêu cầu dò tìm ID: {tiktok_id}")
     socketio.emit('sys_log', {'msg': f"Đang dò tìm phòng live: {tiktok_id}..."})
-    
-    # Chạy TikTokLive trên một luồng riêng để không đơ Web
     threading.Thread(target=run_tiktok_listener, args=(tiktok_id,), daemon=True).start()
 
 def run_tiktok_listener(tiktok_id):
@@ -38,7 +36,6 @@ def run_tiktok_listener(tiktok_id):
 
     @client.on(ConnectEvent)
     async def on_connect(event: ConnectEvent):
-        # Đẩy thông báo xuống điện thoại
         socketio.emit('sys_log', {'msg': "✅ KẾT NỐI THÀNH CÔNG! SẴN SÀNG LÊN ĐƠN!"})
 
     @client.on(DisconnectEvent)
@@ -51,7 +48,6 @@ def run_tiktok_listener(tiktok_id):
         comment_text = event.comment
         has_phone = detect_phone(comment_text)
         
-        # Đóng gói data gửi hỏa tốc xuống màn hình điện thoại
         socketio.emit('new_comment', {
             'time': time_now,
             'user': event.user.nickname,
@@ -65,6 +61,6 @@ def run_tiktok_listener(tiktok_id):
         socketio.emit('sys_log', {'msg': f"Lỗi: {str(e)}"})
 
 if __name__ == '__main__':
-    # Lấy cổng từ hệ thống Cloud, mặc định là 5000 nếu chạy ở nhà
+    # Lấy cổng từ hệ thống Cloud của Render
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host='0.0.0.0', port=port)
