@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Chốt Đơn Võ Lâm Mobile</title>
+    <title>Gấu TikTok - Chốt Đơn Mobile</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #121212; color: #ffffff; margin: 0; padding: 10px; overscroll-behavior-y: contain; }
@@ -30,7 +30,7 @@
 </head>
 <body>
     <div class="header">
-        <h3 style="margin:0 0 10px 0; color: #ffeb3b;">📱 TRẠM CHỐT ĐƠN</h3>
+        <h3 style="margin:0 0 10px 0; color: #ffeb3b;">📱 TRẠM CHỐT ĐƠN TIKTOK</h3>
         <input type="text" id="tiktok_id" placeholder="Nhập ID TikTok đang Live...">
         <div class="btn-group">
             <button class="btn-main btn-start" onclick="startLive()">▶ VẬN CÔNG</button>
@@ -84,7 +84,6 @@
 
         socket.on('sys_log', data => { document.getElementById('log_area').innerText = data.msg; });
 
-        // ĐÃ TRẢ VỀ CÁCH IN HTML CŨ CHUẨN CHỈ CỦA BÁC
         socket.on('new_comment', data => {
             let container = document.getElementById('comments_container');
             let div = document.createElement('div');
@@ -92,7 +91,6 @@
             div.id = id;
             div.className = data.has_phone ? 'comment-box has-phone' : 'comment-box';
             
-            // Lọc nháy đơn/nháy kép để không bị gãy mã
             let safeUser = data.user.replace(/'/g, "\\'").replace(/"/g, '&quot;');
             let safeComment = data.comment.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
@@ -145,7 +143,7 @@
             let blob = new Blob(['\ufeff' + tableHTML], { type: 'application/vnd.ms-excel;charset=utf-8;' });
             let link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = "DonHang_VoLam_" + new Date().toLocaleDateString() + ".xls";
+            link.download = "DonHang_TikTok_" + new Date().toLocaleDateString() + ".xls";
             link.click();
         }
 
