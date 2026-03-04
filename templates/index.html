@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gấu TikTok - Chốt Đơn Mobile</title>
+    <title>Tool Chốt Đơn TikTok</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #121212; color: #ffffff; margin: 0; padding: 10px; overscroll-behavior-y: contain; }
+        /* Khóa CSS cơ bản */
+        body { font-family: Arial, sans-serif; background-color: #121212; color: #ffffff; margin: 0; padding: 10px; overscroll-behavior: none; touch-action: pan-y; }
         .header { text-align: center; margin-bottom: 15px; background: #1e1e1e; padding: 15px; border-radius: 8px; border: 1px solid #444; }
         input[type="text"] { width: 100%; padding: 12px; font-size: 16px; border-radius: 5px; border: none; box-sizing: border-box; margin-bottom: 10px; background: #2c2c2c; color: white; }
         .btn-group { display: flex; gap: 10px; margin-bottom: 10px; }
@@ -15,10 +16,12 @@
         .btn-export { background-color: #2196F3; }
         .btn-clear { background-color: #d32f2f; width: 100%; padding: 12px; font-weight: bold; border: none; border-radius: 5px; color: white; margin-bottom: 10px; }
         #log_area { color: #00ff00; font-size: 13px; font-weight: bold; }
+        
         .tabs { display: flex; margin-bottom: 10px; border-radius: 5px; overflow: hidden; }
         .tab { flex: 1; padding: 12px; text-align: center; background: #333; cursor: pointer; font-weight: bold; font-size: 14px; }
         .tab.active { background: #ff9800; color: #000; }
         #history_container { display: none; }
+        
         .comment-box { background-color: #1e1e1e; border-left: 5px solid #2196F3; padding: 12px; margin-top: 10px; border-radius: 5px; }
         .comment-box.has-phone { border-left-color: #ff0000; background-color: #3a1c1c; }
         .comment-box.chot-roi { border-left-color: #4CAF50; background-color: #1b2e1e; opacity: 0.8; }
@@ -30,7 +33,7 @@
 </head>
 <body>
     <div class="header">
-        <h3 style="margin:0 0 10px 0; color: #ffeb3b;">📱 TRẠM CHỐT ĐƠN TIKTOK</h3>
+        <h3 style="margin:0 0 10px 0; color: #ffeb3b;">📱 TRẠM CHỐT ĐƠN</h3>
         <input type="text" id="tiktok_id" placeholder="Nhập ID TikTok đang Live...">
         <div class="btn-group">
             <button class="btn-main btn-start" onclick="startLive()">▶ VẬN CÔNG</button>
@@ -52,6 +55,33 @@
     </div>
 
     <script>
+        // --- 1. KHÓA TÍNH NĂNG VUỐT TẢI LẠI TRANG (JS CAN THIỆP SÂU) ---
+        let startY = 0;
+        window.addEventListener('touchstart', function(e) {
+            startY = e.touches[0].clientY;
+        }, { passive: false });
+        
+        window.addEventListener('touchmove', function(e) {
+            // Nếu màn hình đang ở tuốt trên cùng mà cố tình vuốt xuống -> CHẶN NGAY
+            if (window.scrollY === 0 && e.touches[0].clientY > startY) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        // Hiện cảnh báo nếu vô tình bấm nút Back của điện thoại
+        window.addEventListener('beforeunload', function (e) {
+            e.preventDefault();
+            e.returnValue = '';
+        });
+
+        // --- 2. TỰ NHỚ ID TIKTOK SAU MỖI LẦN GÕ ---
+        let inputId = document.getElementById('tiktok_id');
+        inputId.value = localStorage.getItem('last_tiktok_id') || '';
+        inputId.addEventListener('input', function() {
+            localStorage.setItem('last_tiktok_id', this.value);
+        });
+
+        // --- 3. LOGIC XỬ LÝ CHỐT ĐƠN ---
         const socket = io();
         let historyList = JSON.parse(localStorage.getItem('lichSuChotDon') || '[]');
         updateCount();
@@ -77,7 +107,7 @@
         }
 
         function startLive() {
-            let id = document.getElementById('tiktok_id').value;
+            let id = inputId.value;
             if(!id) return alert("Nhập ID đã bác!");
             socket.emit('start_live', {tiktok_id: id});
         }
@@ -91,25 +121,32 @@
             div.id = id;
             div.className = data.has_phone ? 'comment-box has-phone' : 'comment-box';
             
-            let safeUser = data.user.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            let safeComment = data.comment.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            // Gắn dữ liệu ẩn vào khung HTML để nút bấm không bị lỗi ký tự
+            div.dataset.user = data.user;
+            div.dataset.comment = data.comment;
+            div.dataset.time = data.time;
 
             div.innerHTML = `
                 <div class="user">${data.user} <small style="color:#aaa">${data.time}</small></div>
                 <div class="text">${data.comment}</div>
-                <button class="btn-chot" id="btn-${id}" onclick="saveToHistory('${id}', '${safeUser}', '${safeComment}', '${data.time}')">CHỐT ĐƠN NÀY</button>
+                <button class="btn-chot" id="btn-${id}" onclick="saveToHistory('${id}')">CHỐT ĐƠN NÀY</button>
             `;
-            
             container.prepend(div);
         });
 
-        function saveToHistory(id, user, comment, time) {
+        function saveToHistory(id) {
+            let div = document.getElementById(id);
+            if(!div) return;
+            
+            let user = div.dataset.user;
+            let comment = div.dataset.comment;
+            let time = div.dataset.time;
+
             historyList.push({ time: time, user: user, comment: comment });
             localStorage.setItem('lichSuChotDon', JSON.stringify(historyList));
             updateCount();
             
-            let div = document.getElementById(id);
-            if(div) div.classList.add('chot-roi');
+            div.classList.add('chot-roi');
             let btn = document.getElementById('btn-' + id);
             if(btn) {
                 btn.innerText = "✅ ĐÃ LƯU";
