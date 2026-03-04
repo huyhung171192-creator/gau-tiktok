@@ -76,4 +76,6 @@ def run_tiktok_listener(tiktok_id):
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    socketio.run(app, host='0.0.0.0', port=port)
+    # THÊM ĐOẠN allow_unsafe_werkzeug=True VÀO CUỐI DÒNG DƯỚI ĐÂY
+    socketio.run(app, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
+
