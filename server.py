@@ -58,7 +58,7 @@ def run_tiktok_listener(tiktok_id):
             client.disconnect()
             return
 
-        time_now = datetime.datetime.now().strftime('%H:%M:%S')
+        time_now = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime('%H:%M:%S')
         comment_text = event.comment
         has_phone = detect_phone(comment_text)
         
@@ -78,4 +78,5 @@ if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     # THÊM ĐOẠN allow_unsafe_werkzeug=True VÀO CUỐI DÒNG DƯỚI ĐÂY
     socketio.run(app, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
+
 
