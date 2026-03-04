@@ -6,9 +6,7 @@
     <title>Chốt Đơn Võ Lâm Mobile</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <style>
-        /* Khóa tính năng vuốt từ trên xuống để Refresh trang trên Mobile */
         body { font-family: Arial, sans-serif; background-color: #121212; color: #ffffff; margin: 0; padding: 10px; overscroll-behavior-y: contain; }
-        
         .header { text-align: center; margin-bottom: 15px; background: #1e1e1e; padding: 15px; border-radius: 8px; border: 1px solid #444; }
         input[type="text"] { width: 100%; padding: 12px; font-size: 16px; border-radius: 5px; border: none; box-sizing: border-box; margin-bottom: 10px; background: #2c2c2c; color: white; }
         .btn-group { display: flex; gap: 10px; margin-bottom: 10px; }
@@ -16,25 +14,17 @@
         .btn-start { background-color: #4CAF50; }
         .btn-export { background-color: #2196F3; }
         .btn-clear { background-color: #d32f2f; width: 100%; padding: 12px; font-weight: bold; border: none; border-radius: 5px; color: white; margin-bottom: 10px; }
-        
         #log_area { color: #00ff00; font-size: 13px; font-weight: bold; }
-        
-        /* Chuyển Tab */
         .tabs { display: flex; margin-bottom: 10px; border-radius: 5px; overflow: hidden; }
         .tab { flex: 1; padding: 12px; text-align: center; background: #333; cursor: pointer; font-weight: bold; font-size: 14px; }
         .tab.active { background: #ff9800; color: #000; }
-        
         #history_container { display: none; }
-        
-        /* Giao diện Comment */
         .comment-box { background-color: #1e1e1e; border-left: 5px solid #2196F3; padding: 12px; margin-top: 10px; border-radius: 5px; }
         .comment-box.has-phone { border-left-color: #ff0000; background-color: #3a1c1c; }
         .comment-box.chot-roi { border-left-color: #4CAF50; background-color: #1b2e1e; opacity: 0.8; }
         .user { font-weight: bold; color: #ffeb3b; font-size: 15px; }
         .text { font-size: 16px; margin: 8px 0; line-height: 1.4; color: #eee; }
         .btn-chot { background-color: #ff9800; width: 100%; padding: 10px; font-weight: bold; border-radius: 5px; border: none; color: black; cursor: pointer; }
-        
-        /* Giao diện Lịch sử */
         .history-item { background: #2c2c2c; padding: 10px; margin-top: 5px; border-radius: 5px; border-left: 4px solid #4CAF50; font-size: 15px;}
     </style>
 </head>
@@ -62,12 +52,6 @@
     </div>
 
     <script>
-        // Cảnh báo nếu vô tình ấn nút Back hoặc thoát trang
-        window.addEventListener('beforeunload', function (e) {
-            e.preventDefault();
-            e.returnValue = '';
-        });
-
         const socket = io();
         let historyList = JSON.parse(localStorage.getItem('lichSuChotDon') || '[]');
         updateCount();
@@ -77,7 +61,6 @@
             document.getElementById('count_num').innerText = historyList.length;
         }
 
-        // Chuyển đổi giữa 2 Tab
         function switchTab(tab) {
             if(tab === 'live') {
                 document.getElementById('tab_live').classList.add('active');
@@ -89,7 +72,7 @@
                 document.getElementById('tab_live').classList.remove('active');
                 document.getElementById('comments_container').style.display = 'none';
                 document.getElementById('history_container').style.display = 'block';
-                renderHistory(); // Cập nhật lại danh sách khi bấm vào tab
+                renderHistory();
             }
         }
 
@@ -101,6 +84,7 @@
 
         socket.on('sys_log', data => { document.getElementById('log_area').innerText = data.msg; });
 
+        // ĐÃ TRẢ VỀ CÁCH IN HTML CŨ CHUẨN CHỈ CỦA BÁC
         socket.on('new_comment', data => {
             let container = document.getElementById('comments_container');
             let div = document.createElement('div');
@@ -108,31 +92,24 @@
             div.id = id;
             div.className = data.has_phone ? 'comment-box has-phone' : 'comment-box';
             
+            // Lọc nháy đơn/nháy kép để không bị gãy mã
+            let safeUser = data.user.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            let safeComment = data.comment.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
             div.innerHTML = `
                 <div class="user">${data.user} <small style="color:#aaa">${data.time}</small></div>
                 <div class="text">${data.comment}</div>
+                <button class="btn-chot" id="btn-${id}" onclick="saveToHistory('${id}', '${safeUser}', '${safeComment}', '${data.time}')">CHỐT ĐƠN NÀY</button>
             `;
             
-            // Xử lý nút bấm an toàn tuyệt đối, không sợ lỗi ký tự đặc biệt
-            let btn = document.createElement('button');
-            btn.className = 'btn-chot';
-            btn.id = 'btn-' + id;
-            btn.innerText = 'CHỐT ĐƠN NÀY';
-            btn.onclick = function() { 
-                saveToHistory(id, data.user, data.comment, data.time); 
-            };
-            
-            div.appendChild(btn);
             container.prepend(div);
         });
 
         function saveToHistory(id, user, comment, time) {
-            // Lưu vào bộ nhớ máy
             historyList.push({ time: time, user: user, comment: comment });
             localStorage.setItem('lichSuChotDon', JSON.stringify(historyList));
             updateCount();
             
-            // Đổi giao diện nút thành màu xanh
             let div = document.getElementById(id);
             if(div) div.classList.add('chot-roi');
             let btn = document.getElementById('btn-' + id);
@@ -144,7 +121,6 @@
             }
         }
 
-        // Vẽ danh sách lịch sử ra màn hình Tab
         function renderHistory() {
             let list = document.getElementById('history_list');
             list.innerHTML = '';
@@ -158,18 +134,14 @@
             });
         }
 
-        // Xuất file chuẩn Excel
         function downloadHistory() {
-            if(historyList.length === 0) return alert("Chưa có đơn nào bác ơi!");
-            
-            // Tạo bảng HTML ngầm để ép Excel phân cột chính xác 100%
+            if(historyList.length === 0) return alert("Chưa có đơn nào!");
             let tableHTML = '<table border="1"><tr><th>Thời Gian</th><th>Tên Khách Hàng</th><th>Nội Dung Chốt</th></tr>';
             historyList.forEach(d => {
                 tableHTML += `<tr><td>${d.time}</td><td>${d.user}</td><td>${d.comment}</td></tr>`;
             });
             tableHTML += '</table>';
             
-            // Xuất ra file đuôi .xls
             let blob = new Blob(['\ufeff' + tableHTML], { type: 'application/vnd.ms-excel;charset=utf-8;' });
             let link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
@@ -177,9 +149,8 @@
             link.click();
         }
 
-        // Xóa lịch sử sau khi xuất file xong
         function clearHistory() {
-            if(confirm("Bác có chắc chắn muốn xóa toàn bộ lịch sử đơn đã chốt không? Chỉ xóa khi đã xuất file nhé!")) {
+            if(confirm("Xóa toàn bộ lịch sử? Chỉ xóa khi đã xuất file nhé!")) {
                 historyList = [];
                 localStorage.removeItem('lichSuChotDon');
                 updateCount();
