@@ -3,39 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gấu TikTok - Chốt Đơn Mobile</title>
+    <title>Chốt Đơn Võ Lâm Mobile</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #121212; color: #ffffff; margin: 0; padding: 15px; }
-        .header { text-align: center; margin-bottom: 20px; background: #1e1e1e; padding: 15px; border-radius: 10px; }
-        input[type="text"] { width: 100%; padding: 15px; font-size: 16px; border-radius: 8px; border: none; box-sizing: border-box; margin-bottom: 10px; background: #2c2c2c; color: white; }
-        .btn-main { width: 100%; padding: 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; color: white; margin-bottom: 10px; }
+        /* Khóa tính năng vuốt từ trên xuống để Refresh trang trên Mobile */
+        body { font-family: Arial, sans-serif; background-color: #121212; color: #ffffff; margin: 0; padding: 10px; overscroll-behavior-y: contain; }
+        
+        .header { text-align: center; margin-bottom: 15px; background: #1e1e1e; padding: 15px; border-radius: 8px; border: 1px solid #444; }
+        input[type="text"] { width: 100%; padding: 12px; font-size: 16px; border-radius: 5px; border: none; box-sizing: border-box; margin-bottom: 10px; background: #2c2c2c; color: white; }
+        .btn-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        .btn-main { flex: 1; padding: 12px; font-size: 14px; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; color: white; }
         .btn-start { background-color: #4CAF50; }
         .btn-export { background-color: #2196F3; }
-        #log_area { margin-bottom: 10px; color: #00ff00; font-size: 14px; }
-        .comment-box { background-color: #1e1e1e; border-left: 5px solid #2196F3; padding: 15px; margin-top: 10px; border-radius: 5px; }
+        .btn-clear { background-color: #d32f2f; width: 100%; padding: 12px; font-weight: bold; border: none; border-radius: 5px; color: white; margin-bottom: 10px; }
+        
+        #log_area { color: #00ff00; font-size: 13px; font-weight: bold; }
+        
+        /* Chuyển Tab */
+        .tabs { display: flex; margin-bottom: 10px; border-radius: 5px; overflow: hidden; }
+        .tab { flex: 1; padding: 12px; text-align: center; background: #333; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .tab.active { background: #ff9800; color: #000; }
+        
+        #history_container { display: none; }
+        
+        /* Giao diện Comment */
+        .comment-box { background-color: #1e1e1e; border-left: 5px solid #2196F3; padding: 12px; margin-top: 10px; border-radius: 5px; }
         .comment-box.has-phone { border-left-color: #ff0000; background-color: #3a1c1c; }
-        .comment-box.chot-roi { border-left-color: #4CAF50; background-color: #1b2e1e; }
-        .user { font-weight: bold; color: #ffeb3b; font-size: 16px; }
-        .text { font-size: 18px; margin: 5px 0; }
-        .btn-chot { background-color: #ff9800; width: 100%; padding: 10px; font-weight: bold; margin-top: 10px; border-radius: 5px; border: none; color: white; }
+        .comment-box.chot-roi { border-left-color: #4CAF50; background-color: #1b2e1e; opacity: 0.8; }
+        .user { font-weight: bold; color: #ffeb3b; font-size: 15px; }
+        .text { font-size: 16px; margin: 8px 0; line-height: 1.4; color: #eee; }
+        .btn-chot { background-color: #ff9800; width: 100%; padding: 10px; font-weight: bold; border-radius: 5px; border: none; color: black; cursor: pointer; }
+        
+        /* Giao diện Lịch sử */
+        .history-item { background: #2c2c2c; padding: 10px; margin-top: 5px; border-radius: 5px; border-left: 4px solid #4CAF50; font-size: 15px;}
     </style>
 </head>
 <body>
     <div class="header">
-        <h2>📱 Tool Chốt Đơn Mobile</h2>
-        <input type="text" id="tiktok_id" placeholder="Nhập ID TikTok...">
+        <h3 style="margin:0 0 10px 0; color: #ffeb3b;">📱 TRẠM CHỐT ĐƠN</h3>
+        <input type="text" id="tiktok_id" placeholder="Nhập ID TikTok đang Live...">
+        <div class="btn-group">
+            <button class="btn-main btn-start" onclick="startLive()">▶ VẬN CÔNG</button>
+            <button class="btn-main btn-export" onclick="downloadHistory()">💾 XUẤT EXCEL</button>
+        </div>
         <div id="log_area">Sẵn sàng...</div>
-        <button class="btn-main btn-start" onclick="startLive()">▶ VẬN CÔNG BẮT ĐẦU</button>
-        <button class="btn-main btn-export" onclick="downloadHistory()">💾 XUẤT FILE EXCEL</button>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" id="tab_live" onclick="switchTab('live')">🔴 BÌNH LUẬN</div>
+        <div class="tab" id="tab_history" onclick="switchTab('history')">📦 ĐÃ LƯU (<span id="count_num">0</span>)</div>
     </div>
 
     <div id="comments_container"></div>
 
+    <div id="history_container">
+        <button class="btn-clear" onclick="clearHistory()">🗑️ XÓA SẠCH LỊCH SỬ</button>
+        <div id="history_list"></div>
+    </div>
+
     <script>
+        // Cảnh báo nếu vô tình ấn nút Back hoặc thoát trang
+        window.addEventListener('beforeunload', function (e) {
+            e.preventDefault();
+            e.returnValue = '';
+        });
+
         const socket = io();
-        // Lấy lịch sử cũ từ máy (nếu có)
-        let history = JSON.parse(localStorage.getItem('chot_don_history') || '[]');
+        let historyList = JSON.parse(localStorage.getItem('lichSuChotDon') || '[]');
+        updateCount();
+        renderHistory();
+
+        function updateCount() {
+            document.getElementById('count_num').innerText = historyList.length;
+        }
+
+        // Chuyển đổi giữa 2 Tab
+        function switchTab(tab) {
+            if(tab === 'live') {
+                document.getElementById('tab_live').classList.add('active');
+                document.getElementById('tab_history').classList.remove('active');
+                document.getElementById('comments_container').style.display = 'block';
+                document.getElementById('history_container').style.display = 'none';
+            } else {
+                document.getElementById('tab_history').classList.add('active');
+                document.getElementById('tab_live').classList.remove('active');
+                document.getElementById('comments_container').style.display = 'none';
+                document.getElementById('history_container').style.display = 'block';
+                renderHistory(); // Cập nhật lại danh sách khi bấm vào tab
+            }
+        }
 
         function startLive() {
             let id = document.getElementById('tiktok_id').value;
@@ -48,41 +104,87 @@
         socket.on('new_comment', data => {
             let container = document.getElementById('comments_container');
             let div = document.createElement('div');
-            div.className = data.has_phone ? 'comment-box has-phone' : 'comment-box';
             let id = "msg-" + Date.now();
             div.id = id;
+            div.className = data.has_phone ? 'comment-box has-phone' : 'comment-box';
             
             div.innerHTML = `
-                <div class="user">${data.user} <small style="color:#888">${data.time}</small></div>
+                <div class="user">${data.user} <small style="color:#aaa">${data.time}</small></div>
                 <div class="text">${data.comment}</div>
-                <button class="btn-chot" id="btn-${id}" onclick="saveToHistory('${id}', '${data.user}', '${data.comment}', '${data.time}')">CHỐT ĐƠN NÀY</button>
             `;
+            
+            // Xử lý nút bấm an toàn tuyệt đối, không sợ lỗi ký tự đặc biệt
+            let btn = document.createElement('button');
+            btn.className = 'btn-chot';
+            btn.id = 'btn-' + id;
+            btn.innerText = 'CHỐT ĐƠN NÀY';
+            btn.onclick = function() { 
+                saveToHistory(id, data.user, data.comment, data.time); 
+            };
+            
+            div.appendChild(btn);
             container.prepend(div);
         });
 
         function saveToHistory(id, user, comment, time) {
-            // Lưu vào danh sách
-            history.push({ time, user, comment });
-            localStorage.setItem('chot_don_history', JSON.stringify(history));
+            // Lưu vào bộ nhớ máy
+            historyList.push({ time: time, user: user, comment: comment });
+            localStorage.setItem('lichSuChotDon', JSON.stringify(historyList));
+            updateCount();
             
-            // Đổi màu để bác biết đã chốt
-            document.getElementById(id).classList.add('chot-roi');
+            // Đổi giao diện nút thành màu xanh
+            let div = document.getElementById(id);
+            if(div) div.classList.add('chot-roi');
             let btn = document.getElementById('btn-' + id);
-            btn.innerText = "✅ ĐÃ LƯU";
-            btn.style.backgroundColor = "#4CAF50";
-            btn.disabled = true;
+            if(btn) {
+                btn.innerText = "✅ ĐÃ LƯU";
+                btn.style.backgroundColor = "#4CAF50";
+                btn.style.color = "#fff";
+                btn.disabled = true;
+            }
         }
 
+        // Vẽ danh sách lịch sử ra màn hình Tab
+        function renderHistory() {
+            let list = document.getElementById('history_list');
+            list.innerHTML = '';
+            historyList.forEach(d => {
+                list.innerHTML += `
+                    <div class="history-item">
+                        <div style="color:#ffeb3b; font-weight:bold;">${d.user} <span style="float:right; font-size:12px; color:#aaa">${d.time}</span></div>
+                        <div style="margin-top:5px; color:#ddd;">${d.comment}</div>
+                    </div>
+                `;
+            });
+        }
+
+        // Xuất file chuẩn Excel
         function downloadHistory() {
-            if(history.length === 0) return alert("Chưa có đơn nào!");
-            let csv = "\uFEFFThời gian;Khách hàng;Nội dung\n";
-            history.forEach(d => { csv += `${d.time};${d.user};${d.comment}\n`; });
+            if(historyList.length === 0) return alert("Chưa có đơn nào bác ơi!");
             
-            let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            // Tạo bảng HTML ngầm để ép Excel phân cột chính xác 100%
+            let tableHTML = '<table border="1"><tr><th>Thời Gian</th><th>Tên Khách Hàng</th><th>Nội Dung Chốt</th></tr>';
+            historyList.forEach(d => {
+                tableHTML += `<tr><td>${d.time}</td><td>${d.user}</td><td>${d.comment}</td></tr>`;
+            });
+            tableHTML += '</table>';
+            
+            // Xuất ra file đuôi .xls
+            let blob = new Blob(['\ufeff' + tableHTML], { type: 'application/vnd.ms-excel;charset=utf-8;' });
             let link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = "LichSuChotDon.csv";
+            link.download = "DonHang_VoLam_" + new Date().toLocaleDateString() + ".xls";
             link.click();
+        }
+
+        // Xóa lịch sử sau khi xuất file xong
+        function clearHistory() {
+            if(confirm("Bác có chắc chắn muốn xóa toàn bộ lịch sử đơn đã chốt không? Chỉ xóa khi đã xuất file nhé!")) {
+                historyList = [];
+                localStorage.removeItem('lichSuChotDon');
+                updateCount();
+                renderHistory();
+            }
         }
     </script>
 </body>
