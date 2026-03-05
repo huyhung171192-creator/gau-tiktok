@@ -32,13 +32,11 @@
         .user { font-weight: bold; color: #ffeb3b; font-size: 15px; line-height: 1.4; }
         .text { font-size: 16px; margin: 8px 0; line-height: 1.4; color: #eee; }
         
-        /* Giao diện nút hành động */
         .action-row { display: flex; gap: 5px; margin-top: 8px; }
         .btn-chot { background-color: #ff9800; flex: 2; padding: 10px; font-weight: bold; border-radius: 5px; border: none; color: black; cursor: pointer; }
         .btn-tag { flex: 1; font-weight: bold; background: #333; color: white; border: 1px solid #555; border-radius: 5px; cursor: pointer; font-size: 12px; }
         .btn-tag:active { background: #555; }
         
-        /* Huy hiệu tag trên tên người dùng */
         .badge-vip { color: gold; font-size: 11px; border: 1px solid gold; padding: 2px 4px; border-radius: 3px; margin-left: 5px; vertical-align: middle;}
         .badge-boom { color: #ff4444; font-size: 11px; border: 1px solid #ff4444; padding: 2px 4px; border-radius: 3px; margin-left: 5px; vertical-align: middle;}
         
@@ -51,14 +49,14 @@
         <input type="text" id="tiktok_id" placeholder="Nhập ID TikTok đang Live...">
         <div class="btn-group">
             <button class="btn-main btn-start" onclick="startLive()">▶ VẬN CÔNG</button>
-            <button class="btn-main btn-export" onclick="downloadHistory()">💾 XUẤT EXCEL</button>
+            <button class="btn-main btn-export" onclick="downloadHistory()">💾 XUẤT FULL EXCEL</button>
         </div>
         <div id="log_area">Sẵn sàng...</div>
     </div>
 
     <div class="tabs">
         <div class="tab active" id="tab_live" onclick="switchTab('live')">🔴 BÌNH LUẬN</div>
-        <div class="tab" id="tab_history" onclick="switchTab('history')">📦 ĐÃ LƯU (<span id="count_num">0</span>)</div>
+        <div class="tab" id="tab_history" onclick="switchTab('history')">📦 ĐÃ CHỐT (<span id="count_num">0</span>)</div>
     </div>
 
     <div id="comments_container"></div>
@@ -69,7 +67,6 @@
     </div>
 
     <script>
-        // Khóa thao tác vuốt tải lại trang trên điện thoại
         let startY = 0;
         window.addEventListener('touchstart', function(e) { startY = e.touches[0].clientY; }, { passive: false });
         window.addEventListener('touchmove', function(e) {
@@ -81,16 +78,16 @@
             e.returnValue = '';
         });
 
-        // Tự động nhớ ID đã nhập
         let inputId = document.getElementById('tiktok_id');
         inputId.value = localStorage.getItem('last_tiktok_id') || '';
         inputId.addEventListener('input', function() { localStorage.setItem('last_tiktok_id', this.value); });
 
         const socket = io();
         let historyList = JSON.parse(localStorage.getItem('lichSuChotDon') || '[]');
-        
-        // SỔ ĐEN LƯU BẰNG UNIQUE_ID (@username)
         let customerTags = JSON.parse(localStorage.getItem('phanLoaiKhach_v2') || '{}');
+        
+        // CẬP NHẬT: Tạo một biến toàn cục để hứng 100% bình luận của phiên Live
+        let allCommentsSession = JSON.parse(sessionStorage.getItem('full_live_session') || '[]');
         
         let msgCounter = 0; 
         updateCount();
@@ -125,12 +122,21 @@
             msgCounter++; 
             let container = document.getElementById('comments_container');
             let div = document.createElement('div');
-            
-            // Tạo ID duy nhất cho khung comment
             let id = "msg-" + Date.now() + "-" + msgCounter; 
             div.id = id;
             
-            // Soi sổ đen bằng ID gốc
+            // CẬP NHẬT: Lưu âm thầm mọi bình luận vào Session
+            allCommentsSession.push({
+                id: id,
+                time: data.time,
+                user: data.user,
+                uid: data.unique_id,
+                comment: data.comment,
+                isChot: false // Mặc định là chưa chốt
+            });
+            sessionStorage.setItem('full_live_session', JSON.stringify(allCommentsSession));
+            
+            // UI logic
             let tag = customerTags[data.unique_id];
             let extraClass = '';
             let badgeHtml = '';
@@ -149,10 +155,8 @@
             div.dataset.comment = data.comment;
             div.dataset.time = data.time;
 
-            // Lọc ký tự đặc biệt để bảo vệ code JS
             let safeUser = data.user.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-            // In giao diện (Có chứa @ID)
             div.innerHTML = `
                 <div class="user">${data.user} <span style="color:#aaa; font-size:12px; font-weight:normal;">(@${data.unique_id})</span> ${badgeHtml} <small style="float:right; color:#aaa; font-weight:normal;">${data.time}</small></div>
                 <div class="text">${data.comment}</div>
@@ -165,17 +169,14 @@
             container.prepend(div);
         });
 
-        // Xử lý gắn huy hiệu VIP/BOOM
         function toggleTag(uid, userName, tagType) {
             if (customerTags[uid] === tagType) {
-                delete customerTags[uid]; // Hủy đánh dấu nếu bấm lần 2
+                delete customerTags[uid]; 
             } else {
-                customerTags[uid] = tagType; // Gắn mác mới
+                customerTags[uid] = tagType; 
             }
-            
             localStorage.setItem('phanLoaiKhach_v2', JSON.stringify(customerTags));
             
-            // Cập nhật lại giao diện tức thì
             document.querySelectorAll(`.comment-box[data-uid="${uid}"]`).forEach(div => {
                 div.classList.remove('box-vip', 'box-boom');
                 let badge = div.querySelector('.tag-badge');
@@ -195,7 +196,6 @@
             });
         }
 
-        // Lưu đơn hàng
         function saveToHistory(id) {
             let div = document.getElementById(id);
             if(!div) return;
@@ -207,10 +207,17 @@
 
             let tagInfo = customerTags[uid] === 'vip' ? '[VIP] ' : (customerTags[uid] === 'boom' ? '[BOOM] ' : '');
 
-            // Lưu kèm ID vào lịch sử
+            // 1. Lưu vào tab Đã Lưu
             historyList.push({ time: time, user: tagInfo + user, uid: uid, comment: comment });
             localStorage.setItem('lichSuChotDon', JSON.stringify(historyList));
             updateCount();
+            
+            // 2. CẬP NHẬT: Đánh dấu comment này là "Đã Chốt" trong bộ nhớ phiên Live
+            let targetMsg = allCommentsSession.find(m => m.id === id);
+            if(targetMsg) {
+                targetMsg.isChot = true;
+                sessionStorage.setItem('full_live_session', JSON.stringify(allCommentsSession));
+            }
             
             div.classList.add('chot-roi');
             let btn = document.getElementById('btn-' + id);
@@ -222,7 +229,6 @@
             }
         }
 
-        // Hiện danh sách đã lưu
         function renderHistory() {
             let list = document.getElementById('history_list');
             list.innerHTML = '';
@@ -237,28 +243,55 @@
             });
         }
 
-        // Tải Excel
+        // CẬP NHẬT: Hàm xuất Full Excel
         function downloadHistory() {
-            if(historyList.length === 0) return alert("Chưa có đơn nào!");
-            // Đã cập nhật cột ID TikTok vào file Excel
-            let tableHTML = '<table border="1"><tr><th>Thời Gian</th><th>Tên Khách Hàng</th><th>ID TikTok</th><th>Nội Dung Chốt</th></tr>';
-            historyList.forEach(d => {
+            if(allCommentsSession.length === 0) {
+                return alert("Chưa có bình luận nào trôi qua trong phiên Live này!");
+            }
+            
+            // Thêm 2 cột mới: Chốt Đơn và Phân Loại
+            let tableHTML = '<table border="1"><tr><th>Thời Gian</th><th>Tên Khách Hàng</th><th>ID TikTok</th><th>Nội Dung</th><th>Chốt Đơn</th><th>Phân Loại</th></tr>';
+            
+            // Vét sạch toàn bộ dữ liệu trong phiên live để in ra
+            allCommentsSession.forEach(d => {
                 let displayUid = d.uid ? `@${d.uid}` : '';
-                tableHTML += `<tr><td>${d.time}</td><td>${d.user}</td><td>${displayUid}</td><td>${d.comment}</td></tr>`;
+                let chotStatus = d.isChot ? 'Đã Chốt ✅' : '';
+                
+                // Soi lại sổ đen lúc xuất file để điền cột Phân Loại
+                let tag = customerTags[d.uid];
+                let tagDisplay = '';
+                if (tag === 'vip') tagDisplay = 'VIP';
+                else if (tag === 'boom') tagDisplay = 'BOOM';
+
+                tableHTML += `<tr>
+                    <td>${d.time}</td>
+                    <td>${d.user}</td>
+                    <td>${displayUid}</td>
+                    <td>${d.comment}</td>
+                    <td>${chotStatus}</td>
+                    <td>${tagDisplay}</td>
+                </tr>`;
             });
             tableHTML += '</table>';
             
             let blob = new Blob(['\ufeff' + tableHTML], { type: 'application/vnd.ms-excel;charset=utf-8;' });
             let link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = "DonHang_TikTok_" + new Date().toLocaleDateString() + ".xls";
+            link.download = "Full_Live_TikTok_" + new Date().toLocaleDateString() + ".xls";
             link.click();
         }
 
         function clearHistory() {
-            if(confirm("Xóa toàn bộ lịch sử? Chỉ xóa khi đã xuất file nhé!")) {
+            if(confirm("Hành động này sẽ Xóa Lịch sử đã chốt và DỌN DẸP SẠCH TOÀN BỘ bình luận của phiên Live hiện tại. Chỉ bấm khi đã xuất xong file Excel nhé!")) {
+                // Xóa tab lịch sử
                 historyList = [];
                 localStorage.removeItem('lichSuChotDon');
+                
+                // CẬP NHẬT: Xóa luôn bộ nhớ tạm của phiên Live
+                allCommentsSession = [];
+                sessionStorage.removeItem('full_live_session');
+                document.getElementById('comments_container').innerHTML = ''; // Quét sạch màn hình
+                
                 updateCount();
                 renderHistory();
             }
