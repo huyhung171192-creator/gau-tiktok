@@ -27,11 +27,11 @@ def handle_start(data):
     global stop_flags
     tiktok_id = data['tiktok_id']
     
-    # 1. Bật cờ "True" cho TẤT CẢ các luồng đang chạy ngầm để ép dừng lại
+    # Ép các luồng cũ dừng lại
     for k in stop_flags.keys():
         stop_flags[k] = True
         
-    # 2. Mở cửa cho ID mới
+    # Mở cửa cho ID mới
     stop_flags[tiktok_id] = False
     
     socketio.emit('sys_log', {'msg': f"Đang dò tìm phòng live: {tiktok_id}..."})
@@ -53,7 +53,7 @@ def run_tiktok_listener(tiktok_id):
 
     @client.on(CommentEvent)
     async def on_comment(event: CommentEvent):
-        # ĐÂY LÀ CHỖ TÔI THÊM CHỮ "await" ĐỂ NGẮT LUỒNG CHUẨN XÁC
+        # Ngắt kết nối an toàn nếu có lệnh đổi phòng
         if stop_flags.get(tiktok_id, False):
             await client.disconnect()
             return
@@ -66,6 +66,7 @@ def run_tiktok_listener(tiktok_id):
         socketio.emit('new_comment', {
             'time': time_now,
             'user': event.user.nickname,
+            'unique_id': event.user.unique_id,  # Lấy ID chuẩn (@) không sợ trùng tên
             'comment': comment_text,
             'has_phone': has_phone
         })
