@@ -287,10 +287,6 @@
                 historyList = [];
                 localStorage.removeItem('lichSuChotDon');
                 
-                // CẬP NHẬT: Xóa luôn bộ nhớ tạm của phiên Live
-                allCommentsSession = [];
-                sessionStorage.removeItem('full_live_session');
-                document.getElementById('comments_container').innerHTML = ''; // Quét sạch màn hình
                 
                 updateCount();
                 renderHistory();
@@ -299,3 +295,4 @@
     </script>
 </body>
 </html>
+
