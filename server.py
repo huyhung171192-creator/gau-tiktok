@@ -27,7 +27,7 @@ def handle_start(data):
     global stop_flags
     tiktok_id = data['tiktok_id']
     
-    # Ép các luồng cũ dừng lại
+    # Ép các luồng cũ dừng lại để không bị đúp comment
     for k in stop_flags.keys():
         stop_flags[k] = True
         
@@ -63,10 +63,11 @@ def run_tiktok_listener(tiktok_id):
         comment_text = event.comment
         has_phone = detect_phone(comment_text)
         
+        # Gửi dữ liệu xuống giao diện web
         socketio.emit('new_comment', {
             'time': time_now,
-            'user': event.user.nickname,
-            'unique_id': event.user.unique_id,  # Lấy ID chuẩn (@) không sợ trùng tên
+            'user': event.user.nickname,           # Tên hiển thị
+            'unique_id': event.user.unique_id,     # ID gốc có chữ @ để chống trùng
             'comment': comment_text,
             'has_phone': has_phone
         })
