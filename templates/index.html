@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tool Chốt Đơn TikTok</title>
+    <title>Tool Chốt Đơn TikTok VIP</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #121212; color: #ffffff; margin: 0; padding: 10px; overscroll-behavior: none; touch-action: pan-y; }
@@ -21,18 +21,33 @@
         .tab.active { background: #ff9800; color: #000; }
         #history_container { display: none; }
         
-        .comment-box { background-color: #1e1e1e; border-left: 5px solid #2196F3; padding: 12px; margin-top: 10px; border-radius: 5px; }
+        .comment-box { background-color: #1e1e1e; border-left: 5px solid #2196F3; padding: 12px; margin-top: 10px; border-radius: 5px; transition: all 0.3s ease; }
         .comment-box.has-phone { border-left-color: #ff0000; background-color: #3a1c1c; }
-        .comment-box.chot-roi { border-left-color: #4CAF50; background-color: #1b2e1e; opacity: 0.8; }
+        .comment-box.chot-roi { border-left-color: #4CAF50 !important; background-color: #1b2e1e !important; opacity: 0.8; }
+        
+        /* Hiệu ứng VIP và BOOM */
+        .box-vip { border-left-color: gold !important; background-color: #332b00 !important; }
+        .box-boom { border-left-color: #ff4444 !important; background-color: #2b0000 !important; }
+        
         .user { font-weight: bold; color: #ffeb3b; font-size: 15px; }
         .text { font-size: 16px; margin: 8px 0; line-height: 1.4; color: #eee; }
-        .btn-chot { background-color: #ff9800; width: 100%; padding: 10px; font-weight: bold; border-radius: 5px; border: none; color: black; cursor: pointer; }
+        
+        /* Chỉnh lại giao diện các nút */
+        .action-row { display: flex; gap: 5px; margin-top: 8px; }
+        .btn-chot { background-color: #ff9800; flex: 2; padding: 10px; font-weight: bold; border-radius: 5px; border: none; color: black; cursor: pointer; }
+        .btn-tag { flex: 1; font-weight: bold; background: #333; color: white; border: 1px solid #555; border-radius: 5px; cursor: pointer; font-size: 12px; }
+        .btn-tag:active { background: #555; }
+        
+        /* Huy hiệu tag */
+        .badge-vip { color: gold; font-size: 11px; border: 1px solid gold; padding: 2px 4px; border-radius: 3px; margin-left: 5px; vertical-align: middle;}
+        .badge-boom { color: #ff4444; font-size: 11px; border: 1px solid #ff4444; padding: 2px 4px; border-radius: 3px; margin-left: 5px; vertical-align: middle;}
+        
         .history-item { background: #2c2c2c; padding: 10px; margin-top: 5px; border-radius: 5px; border-left: 4px solid #4CAF50; font-size: 15px;}
     </style>
 </head>
 <body>
     <div class="header">
-        <h3 style="margin:0 0 10px 0; color: #ffeb3b;">📱 TRẠM CHỐT ĐƠN</h3>
+        <h3 style="margin:0 0 10px 0; color: #ffeb3b;">📱 TRẠM CHỐT ĐƠN VIP</h3>
         <input type="text" id="tiktok_id" placeholder="Nhập ID TikTok đang Live...">
         <div class="btn-group">
             <button class="btn-main btn-start" onclick="startLive()">▶ VẬN CÔNG</button>
@@ -72,9 +87,10 @@
         const socket = io();
         let historyList = JSON.parse(localStorage.getItem('lichSuChotDon') || '[]');
         
-        // THÊM BỘ ĐẾM ĐỂ ĐẢM BẢO ID LÀ ĐỘC NHẤT VÔ NHỊ
-        let msgCounter = 0; 
+        // --- DATA KHÁCH HÀNG (VIP / BOOM) ---
+        let customerTags = JSON.parse(localStorage.getItem('phanLoaiKhach') || '{}');
         
+        let msgCounter = 0; 
         updateCount();
         renderHistory();
 
@@ -104,27 +120,75 @@
         socket.on('sys_log', data => { document.getElementById('log_area').innerText = data.msg; });
 
         socket.on('new_comment', data => {
-            msgCounter++; // Tăng bộ đếm mỗi khi có comment mới
+            msgCounter++; 
             let container = document.getElementById('comments_container');
             let div = document.createElement('div');
             
-            // Ép thêm bộ đếm vào ID để không bao giờ bị trùng
             let id = "msg-" + Date.now() + "-" + msgCounter; 
-            
             div.id = id;
-            div.className = data.has_phone ? 'comment-box has-phone' : 'comment-box';
             
+            // Kiểm tra xem khách này có trong sổ đen hay VIP không
+            let tag = customerTags[data.user];
+            let extraClass = '';
+            let badgeHtml = '';
+            
+            if (tag === 'vip') {
+                extraClass = 'box-vip';
+                badgeHtml = '<span class="tag-badge badge-vip">⭐ VIP</span>';
+            } else if (tag === 'boom') {
+                extraClass = 'box-boom';
+                badgeHtml = '<span class="tag-badge badge-boom">💣 BOOM</span>';
+            }
+
+            div.className = `comment-box ${data.has_phone ? 'has-phone' : ''} ${extraClass}`;
             div.dataset.user = data.user;
             div.dataset.comment = data.comment;
             div.dataset.time = data.time;
 
+            // Xử lý dấu nháy đơn để không gãy nút bấm JS
+            let safeUser = data.user.replace(/'/g, "\\'");
+
             div.innerHTML = `
-                <div class="user">${data.user} <small style="color:#aaa">${data.time}</small></div>
+                <div class="user">${data.user} ${badgeHtml} <small style="float:right; color:#aaa; font-weight:normal;">${data.time}</small></div>
                 <div class="text">${data.comment}</div>
-                <button class="btn-chot" id="btn-${id}" onclick="saveToHistory('${id}')">CHỐT ĐƠN NÀY</button>
+                <div class="action-row">
+                    <button class="btn-chot" id="btn-${id}" onclick="saveToHistory('${id}')">CHỐT ĐƠN</button>
+                    <button class="btn-tag" onclick="toggleTag('${safeUser}', 'vip')">⭐ VIP</button>
+                    <button class="btn-tag" onclick="toggleTag('${safeUser}', 'boom')">💣 BOOM</button>
+                </div>
             `;
             container.prepend(div);
         });
+
+        // Hàm xử lý Đánh dấu / Gỡ đánh dấu khách hàng
+        function toggleTag(user, tagType) {
+            // Nếu bấm lại đúng tag đó -> Gỡ bỏ tag (khách trở lại bình thường)
+            if (customerTags[user] === tagType) {
+                delete customerTags[user];
+            } else {
+                customerTags[user] = tagType; // Ghi đè thành VIP hoặc BOOM
+            }
+            
+            // Lưu vào bộ nhớ điện thoại
+            localStorage.setItem('phanLoaiKhach', JSON.stringify(customerTags));
+            
+            // Cập nhật giao diện TẤT CẢ bình luận đang hiện trên màn hình của khách này
+            document.querySelectorAll(`.comment-box[data-user="${user}"]`).forEach(div => {
+                div.classList.remove('box-vip', 'box-boom');
+                let badge = div.querySelector('.tag-badge');
+                if(badge) badge.remove();
+
+                if (customerTags[user] === 'vip') {
+                    div.classList.add('box-vip');
+                    div.querySelector('.user').innerHTML = `${user} <span class="tag-badge badge-vip">⭐ VIP</span> <small style="float:right; color:#aaa; font-weight:normal;">${div.dataset.time}</small>`;
+                } else if (customerTags[user] === 'boom') {
+                    div.classList.add('box-boom');
+                    div.querySelector('.user').innerHTML = `${user} <span class="tag-badge badge-boom">💣 BOOM</span> <small style="float:right; color:#aaa; font-weight:normal;">${div.dataset.time}</small>`;
+                } else {
+                    div.querySelector('.user').innerHTML = `${user} <small style="float:right; color:#aaa; font-weight:normal;">${div.dataset.time}</small>`;
+                }
+            });
+        }
 
         function saveToHistory(id) {
             let div = document.getElementById(id);
@@ -134,7 +198,10 @@
             let comment = div.dataset.comment;
             let time = div.dataset.time;
 
-            historyList.push({ time: time, user: user, comment: comment });
+            // Kèm luôn thông tin tag vào file Excel để sau xuất ra biết ai là VIP
+            let tagInfo = customerTags[user] === 'vip' ? '[VIP] ' : (customerTags[user] === 'boom' ? '[BOOM] ' : '');
+
+            historyList.push({ time: time, user: tagInfo + user, comment: comment });
             localStorage.setItem('lichSuChotDon', JSON.stringify(historyList));
             updateCount();
             
